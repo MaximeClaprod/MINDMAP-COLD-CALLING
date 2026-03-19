@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Script Navigator — C.lechantier</title>
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --surface2: #161b22;
+  --border: #21262d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --accent-play: #3fb950;
+  --accent-edit: #f0883e;
+  --accent-del: #f85149;
+  --radius: 12px;
+  --font: 'DM Mono', 'Fira Code', 'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ══ TOPBAR ══ */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(7,9,15,0.95); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; height: 52px; padding: 0 20px; gap: 0;
+}
+#topbar .logo { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.05em; margin-right: 24px; white-space: nowrap; }
+#topbar .logo span { color: var(--accent-play); }
+.tab-btn {
+  height: 52px; padding: 0 20px; background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); font-family: var(--font); font-size: 12px; letter-spacing: 0.08em;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent-play); }
+.tab-btn.active.edit-tab { border-bottom-color: var(--accent-edit); }
+#topbar .spacer { flex: 1; }
+#save-badge {
+  font-size: 10px; padding: 3px 10px; border-radius: 20px;
+  background: rgba(63,185,80,0.13); color: var(--accent-play);
+  border: 1px solid rgba(63,185,80,0.27); letter-spacing: 0.08em; display: none;
+}
+
+/* ══ VIEWS ══ */
+.view { display: none; min-height: 100vh; }
+.view.active { display: block; }
+
+/* ══════════════════════════════════════
+   PERSONA SCREEN
+══════════════════════════════════════ */
+#persona-view {
+  align-items: center; justify-content: center;
+  padding: 52px 16px 40px;
+  position: relative;
+}
+#persona-view.active { display: flex; }
+
+#persona-bg {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(56,189,248,0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.09) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+#persona-box {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 520px;
+  animation: fadeSlide 0.3s ease;
+}
+
+.persona-header { text-align: center; margin-bottom: 36px; }
+.persona-header .pre-label {
+  font-size: 10px; letter-spacing: 0.2em; color: var(--muted);
+  margin-bottom: 12px; display: block;
+}
+.persona-header h1 {
+  font-size: 26px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.03em; line-height: 1.2;
+}
+.persona-header h1 span { color: var(--accent-play); }
+.persona-header p { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
+.persona-cards { display: flex; flex-direction: column; gap: 14px; }
+
+.persona-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 22px 24px;
+  cursor: pointer; transition: all 0.18s;
+  display: flex; align-items: center; gap: 18px;
+  position: relative; overflow: hidden;
+}
+.persona-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; opacity: 0; transition: opacity 0.18s;
+}
+.persona-card.pm::before { background: #34d399; }
+.persona-card.mgr::before { background: #f472b6; }
+.persona-card:hover { transform: translateY(-2px); }
+.persona-card.pm:hover { border-color: rgba(52,211,153,0.40); box-shadow: 0 8px 32px rgba(52,211,153,0.09); }
+.persona-card.mgr:hover { border-color: rgba(244,114,182,0.40); box-shadow: 0 8px 32px rgba(244,114,182,0.09); }
+.persona-card.pm:hover::before { opacity: 1; }
+.persona-card.mgr:hover::before { opacity: 1; }
+.persona-card.selected.pm { border-color: #34d399; box-shadow: 0 0 0 3px rgba(52,211,153,0.13); }
+.persona-card.selected.mgr { border-color: #f472b6; box-shadow: 0 0 0 3px rgba(244,114,182,0.13); }
+.persona-card.selected::before { opacity: 1; }
+
+.persona-icon {
+  font-size: 32px; width: 56px; height: 56px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; border: 1px solid transparent;
+}
+.persona-card.pm .persona-icon { background: rgba(52,211,153,0.09); border-color: rgba(52,211,153,0.20); }
+.persona-card.mgr .persona-icon { background: rgba(244,114,182,0.09); border-color: rgba(244,114,182,0.20); }
+
+.persona-info { flex: 1; }
+.persona-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.persona-card.pm .persona-title { color: #34d399; }
+.persona-card.mgr .persona-title { color: #f472b6; }
+.persona-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.persona-arrow {
+  font-size: 18px; color: var(--border); transition: all 0.18s; flex-shrink: 0;
+}
+.persona-card.pm:hover .persona-arrow { color: #34d399; transform: translateX(3px); }
+.persona-card.mgr:hover .persona-arrow { color: #f472b6; transform: translateX(3px); }
+.persona-card.selected .persona-arrow { transform: translateX(3px); }
+.persona-card.selected.pm .persona-arrow { color: #34d399; }
+.persona-card.selected.mgr .persona-arrow { color: #f472b6; }
+
+#persona-start-btn {
+  margin-top: 24px; width: 100%; padding: 15px;
+  border-radius: 10px; border: none; font-family: var(--font);
+  font-size: 13px; font-weight: 800; letter-spacing: 0.1em;
+  cursor: pointer; transition: all 0.18s; opacity: 0.35; pointer-events: none;
+  background: var(--accent-play); color: #fff;
+}
+#persona-start-btn.ready { opacity: 1; pointer-events: all; }
+#persona-start-btn.ready:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(63,185,80,0.27); }
+
+/* ══════════════════════════════════════
+   PLAY VIEW
+══════════════════════════════════════ */
+#play-view {
+  align-items: center; justify-content: center;
+  padding: 100px 16px 40px; position: relative;
+}
+#play-view.active { display: flex; }
+
+#bg-grid {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-size: 48px 48px; transition: background-image 0.4s;
+}
+
+/* persona badge in play */
+#persona-badge {
+  position: fixed; top: 52px; left: 0; right: 0; z-index: 91;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 20px; gap: 8px;
+  background: rgba(7,9,15,0.85); border-bottom: 1px solid transparent;
+  backdrop-filter: blur(6px);
+}
+#persona-badge-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+#persona-badge-value { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+#persona-change-btn {
+  margin-left: auto; background: none; border: 1px solid var(--border);
+  color: var(--muted); font-size: 10px; padding: 2px 10px; border-radius: 4px;
+  cursor: pointer; font-family: var(--font); letter-spacing: 0.06em; transition: all 0.15s;
+}
+#persona-change-btn:hover { color: var(--text); border-color: #444c56; }
+
+/* breadcrumb */
+#bc-bar {
+  position: fixed; top: 80px; left: 0; right: 0; z-index: 90;
+  background: rgba(7,9,15,0.9); border-bottom: 1px solid var(--border);
+  padding: 7px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  font-size: 11px; backdrop-filter: blur(6px);
+}
+.bc-label { color: var(--muted); margin-right: 4px; letter-spacing: 0.08em; }
+.bc-sep { color: #2d333b; }
+.bc-crumb { color: var(--muted); cursor: default; }
+.bc-crumb.clickable { cursor: pointer; text-decoration: underline; }
+.bc-crumb.active { font-weight: 700; }
+#bc-reset {
+  margin-left: auto; background: none; border: 1px solid var(--border);
+  color: var(--muted); font-size: 10px; padding: 2px 10px; border-radius: 4px;
+  cursor: pointer; font-family: var(--font); letter-spacing: 0.06em; transition: all 0.15s;
+}
+#bc-reset:hover { color: var(--text); border-color: #444c56; }
+
+/* card */
+#play-card {
+  position: relative; z-index: 1; width: 100%; max-width: 580px;
+  border-radius: var(--radius); overflow: hidden; border: 1.5px solid transparent;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.7); animation: fadeSlide 0.22s ease;
+}
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#card-topbar { height: 3px; }
+#card-head { padding: 24px 28px 14px; }
+#card-tag {
+  display: inline-block; font-size: 10px; letter-spacing: 0.14em; font-weight: 700;
+  padding: 3px 12px; border-radius: 20px; border: 1px solid transparent; margin-bottom: 10px;
+}
+#card-title { font-size: 22px; font-weight: 800; color: #f0f6fc; letter-spacing: -0.02em; line-height: 1.2; }
+#card-body { padding: 0 28px 18px; }
+.content-box {
+  background: rgba(255,255,255,0.04); border: 1px solid transparent;
+  border-radius: 10px; padding: 16px 18px; color: #adbac7; font-size: 14px;
+  line-height: 1.75; white-space: pre-line;
+}
+.checklist-wrap { background: rgba(255,255,255,0.04); border: 1px solid transparent; border-radius: 10px; padding: 6px 18px; }
+.check-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid transparent; }
+.check-item:last-child { border-bottom: none !important; }
+.check-num {
+  min-width: 22px; height: 22px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 11px;
+  font-weight: 700; flex-shrink: 0; border: 1px solid transparent;
+}
+.check-text { color: #adbac7; font-size: 13px; line-height: 1.6; }
+#card-choices { padding: 0 28px 28px; display: flex; flex-direction: column; gap: 8px; }
+.choices-lbl { font-size: 10px; color: #444c56; letter-spacing: 0.1em; margin-bottom: 4px; }
+.choice-btn {
+  background: transparent; border: 1.5px solid transparent; border-radius: 10px; padding: 13px 16px;
+  color: #cdd9e5; font-size: 13px; text-align: left; cursor: pointer; transition: all 0.14s;
+  display: flex; align-items: center; gap: 10px; font-family: var(--font); width: 100%;
+}
+.choice-num {
+  width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid transparent;
+}
+#card-end { padding: 0 28px 28px; }
+.end-msg { text-align: center; padding: 20px; font-size: 13px; border-radius: 10px; border: 1px solid transparent; letter-spacing: 0.06em; }
+#play-back {
+  margin-top: 14px; z-index: 1; position: relative; background: none;
+  border: 1px solid var(--border); color: var(--muted); font-size: 12px;
+  padding: 8px 22px; border-radius: 8px; cursor: pointer; font-family: var(--font);
+  letter-spacing: 0.05em; transition: all 0.15s; display: none;
+}
+#play-back:hover { color: var(--text); border-color: #444c56; }
+
+/* ══════════════════════════════════════
+   EDIT VIEW
+══════════════════════════════════════ */
+#edit-view { padding: 72px 20px 60px; max-width: 1100px; margin: 0 auto; }
+#edit-view.active { display: block; }
+.edit-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.edit-header h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+.edit-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.btn-green {
+  padding: 9px 20px; border-radius: 8px; background: var(--accent-play); color: #fff;
+  border: none; font-family: var(--font); font-size: 12px; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.06em; transition: opacity 0.15s;
+}
+.btn-green:hover { opacity: 0.85; }
+#node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.node-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.15s; }
+.node-card:hover { border-color: #444c56; }
+.node-card-top { height: 3px; }
+.node-card-head { padding: 14px 16px 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.node-card-title { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+.node-card-type { font-size: 9px; letter-spacing: 0.12em; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid transparent; white-space: nowrap; flex-shrink: 0; }
+.node-card-body { padding: 0 16px 10px; }
+.node-card-content { font-size: 12px; color: var(--muted); line-height: 1.6; max-height: 60px; overflow: hidden; position: relative; }
+.node-card-content::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 20px; background: linear-gradient(transparent, var(--surface)); }
+.node-card-choices { padding: 0 16px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-chip { font-size: 10px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-card-actions { padding: 10px 16px 14px; display: flex; gap: 8px; border-top: 1px solid var(--border); }
+.btn-edit-node, .btn-del-node {
+  flex: 1; padding: 7px 12px; border-radius: 7px; font-family: var(--font);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer;
+  transition: all 0.14s; border: 1px solid transparent;
+}
+.btn-edit-node { background: rgba(240,136,62,0.09); border-color: rgba(240,136,62,0.27); color: var(--accent-edit); }
+.btn-edit-node:hover { background: rgba(240,136,62,0.20); }
+.btn-del-node { background: rgba(248,81,73,0.09); border-color: rgba(248,81,73,0.27); color: var(--accent-del); flex: 0 0 auto; padding: 7px 14px; }
+.btn-del-node:hover { background: rgba(248,81,73,0.20); }
+
+/* ══ MODAL ══ */
+#modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+#modal-overlay.open { display: flex; }
+#modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 80px rgba(0,0,0,0.8); animation: fadeSlide 0.2s ease; }
+#modal-head { padding: 20px 24px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+#modal-title { font-size: 16px; font-weight: 700; color: var(--text); flex: 1; }
+#modal-close { width: 30px; height: 30px; border-radius: 6px; background: none; border: 1px solid var(--border); color: var(--muted); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.14s; }
+#modal-close:hover { border-color: #444c56; color: var(--text); }
+#modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); font-weight: 700; }
+.form-input, .form-select, .form-textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 13px; padding: 10px 14px; border-radius: 8px; outline: none; width: 100%; transition: border-color 0.15s; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent-edit); }
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.form-select option { background: var(--surface2); }
+.color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.color-preview { display: flex; align-items: center; gap: 8px; }
+input[type="color"] { width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--border); padding: 2px; background: var(--surface2); cursor: pointer; }
+#choices-list { display: flex; flex-direction: column; gap: 8px; }
+.choice-row { display: flex; gap: 8px; align-items: stretch; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.choice-row-inner { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.choice-row-inner input, .choice-row-inner select { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 12px; padding: 7px 10px; border-radius: 6px; outline: none; width: 100%; transition: border-color 0.15s; }
+.choice-row-inner input:focus, .choice-row-inner select:focus { border-color: var(--accent-edit); }
+.choice-row-inner select option { background: var(--bg); }
+.btn-rm-choice { background: rgba(248,81,73,0.09); border: 1px solid rgba(248,81,73,0.20); color: var(--accent-del); border-radius: 6px; width: 30px; cursor: pointer; font-size: 14px; transition: background 0.14s; flex-shrink: 0; }
+.btn-rm-choice:hover { background: rgba(248,81,73,0.27); }
+#btn-add-choice { background: none; border: 1px dashed var(--border); color: var(--muted); font-family: var(--font); font-size: 11px; padding: 9px; border-radius: 8px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.14s; width: 100%; }
+#btn-add-choice:hover { border-color: var(--accent-edit); color: var(--accent-edit); }
+#items-list { display: flex; flex-direction: column; gap: 8px; }
+.item-row { display: flex; gap: 8px; align-items: center; }
+.item-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 12px; padding: 9px 12px; border-radius: 8px; outline: none; transition: border-color 0.15s; }
+.item-row input:focus { border-color: var(--accent-edit); }
+.btn-rm-item { background: rgba(248,81,73,0.09); border: 1px solid rgba(248,81,73,0.20); color: var(--accent-del); border-radius: 6px; width: 32px; height: 36px; cursor: pointer; font-size: 14px; transition: background 0.14s; flex-shrink: 0; }
+.btn-rm-item:hover { background: rgba(248,81,73,0.27); }
+#btn-add-item { background: none; border: 1px dashed var(--border); color: var(--muted); font-family: var(--font); font-size: 11px; padding: 9px; border-radius: 8px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.14s; width: 100%; }
+#btn-add-item:hover { border-color: var(--accent-edit); color: var(--accent-edit); }
+#modal-foot { padding: 16px 24px 20px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+.btn-cancel { padding: 9px 20px; border-radius: 8px; background: none; border: 1px solid var(--border); color: var(--muted); font-family: var(--font); font-size: 12px; cursor: pointer; transition: all 0.14s; }
+.btn-cancel:hover { border-color: #444c56; color: var(--text); }
+.btn-save { padding: 9px 22px; border-radius: 8px; background: var(--accent-edit); color: #fff; border: none; font-family: var(--font); font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: 0.06em; transition: opacity 0.14s; }
+.btn-save:hover { opacity: 0.85; }
+
+/* ══ CONFIRM ══ */
+#confirm-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; }
+#confirm-overlay.open { display: flex; }
+#confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px 32px; max-width: 380px; width: 90%; text-align: center; }
+#confirm-box h3 { font-size: 15px; margin-bottom: 10px; color: var(--text); }
+#confirm-box p { font-size: 12px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
+#confirm-box .btns { display: flex; gap: 10px; justify-content: center; }
+.btn-confirm-yes { padding: 9px 24px; border-radius: 8px; background: var(--accent-del); color: #fff; border: none; font-family: var(--font); font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-confirm-no { padding: 9px 24px; border-radius: 8px; background: none; border: 1px solid var(--border); color: var(--muted); font-family: var(--font); font-size: 12px; cursor: pointer; }
+
+/* ══ TOAST ══ */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 12px; padding: 10px 20px; border-radius: 8px; z-index: 999; pointer-events: none; opacity: 0; transition: opacity 0.2s; letter-spacing: 0.05em; white-space: nowrap; }
+#toast.show { opacity: 1; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">📞 <span>Script</span>Nav</div>
+  <button class="tab-btn active" id="tab-play" onclick="switchTab('play')">▶ APPEL EN COURS</button>
+  <button class="tab-btn edit-tab" id="tab-edit" onclick="switchTab('edit')">✏️ ÉDITEUR DE SCRIPT</button>
+  <div class="spacer"></div>
+  <span id="save-badge">✓ SAUVEGARDÉ</span>
+</div>
+
+<!-- BG GRID (play) -->
+<div id="bg-grid"></div>
+
+<!-- ══════════ PERSONA SCREEN ══════════ -->
+<div id="persona-view" class="view active">
+  <div id="persona-bg"></div>
+  <div id="persona-box">
+    <div class="persona-header">
+      <span class="pre-label">AVANT L'APPEL</span>
+      <h1>Quel est le <span>persona</span> ?</h1>
+      <p>Sélectionne le profil de ton prospect pour charger le bon script directement.</p>
+    </div>
+    <div class="persona-cards">
+
+      <div class="persona-card pm" id="card-pm" onclick="selectPersona('pm')">
+        <div class="persona-icon">🧑‍💼</div>
+        <div class="persona-info">
+          <div class="persona-title">Project Manager</div>
+          <div class="persona-desc">Gère directement les projets IRVE / photovoltaïque sur le terrain. Suit les chantiers, coordonne les installateurs.</div>
+        </div>
+        <div class="persona-arrow">→</div>
+      </div>
+
+      <div class="persona-card mgr" id="card-mgr" onclick="selectPersona('mgr')">
+        <div class="persona-icon">👔</div>
+        <div class="persona-info">
+          <div class="persona-title">Responsable Project Manager</div>
+          <div class="persona-desc">Supervise une équipe de PMs. Vision globale, reporting, scalabilité de l'organisation.</div>
+        </div>
+        <div class="persona-arrow">→</div>
+      </div>
+
+    </div>
+    <button id="persona-start-btn" onclick="startCall()">▶ LANCER L'APPEL</button>
+  </div>
+</div>
+
+<!-- ══════════ PLAY VIEW ══════════ -->
+<div id="play-view" class="view">
+  <!-- persona badge -->
+  <div id="persona-badge">
+    <span class="bc-label">PERSONA</span>
+    <span id="persona-badge-value"></span>
+    <button id="persona-change-btn" onclick="changePersona()">⇄ Changer</button>
+  </div>
+  <!-- breadcrumb -->
+  <div id="bc-bar">
+    <span class="bc-label">PARCOURS</span>
+    <span id="bc-crumbs"></span>
+    <button id="bc-reset" onclick="resetPlay()">↺ RESET</button>
+  </div>
+  <!-- card -->
+  <div id="play-card">
+    <div id="card-topbar"></div>
+    <div id="card-head">
+      <span id="card-tag"></span>
+      <h2 id="card-title"></h2>
+    </div>
+    <div id="card-body"></div>
+    <div id="card-choices"></div>
+    <div id="card-end" style="display:none"><div class="end-msg" id="end-msg">✅ FIN DU SCRIPT</div></div>
+  </div>
+  <button id="play-back" onclick="goBack()">← Étape précédente</button>
+</div>
+
+<!-- ══════════ EDIT VIEW ══════════ -->
+<div id="edit-view" class="view">
+  <div class="edit-header">
+    <div>
+      <h1>✏️ Éditeur de script</h1>
+      <p>Modifiez les étapes, ajoutez des objections, créez de nouveaux chemins.</p>
+    </div>
+    <button class="btn-green" onclick="openModal(null)">+ Nouvelle étape</button>
+  </div>
+  <div id="node-grid"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-head">
+      <span id="modal-title">Étape</span>
+      <button id="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body">
+      <div class="form-group">
+        <label class="form-label">ID UNIQUE (ex: objection_prix)</label>
+        <input class="form-input" id="f-id" placeholder="mon_etape" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">TITRE / LABEL</label>
+        <input class="form-input" id="f-label" placeholder="🎯 Mon étape" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">TYPE</label>
+        <select class="form-select" id="f-type" onchange="onTypeChange()">
+          <option value="question">QUESTION</option>
+          <option value="reponse">RÉPONSE TYPE</option>
+          <option value="pitch">PITCH</option>
+          <option value="checklist">QUALIFICATION</option>
+          <option value="solution">SOLUTION</option>
+          <option value="closing">CLOSING</option>
+          <option value="action">ACTION</option>
+          <option value="entry">DÉPART</option>
+        </select>
+      </div>
+      <div class="form-group" id="f-content-group">
+        <label class="form-label">CONTENU (texte affiché)</label>
+        <textarea class="form-textarea" id="f-content" placeholder="Texte de l'étape..."></textarea>
+      </div>
+      <div class="form-group" id="f-items-group" style="display:none">
+        <label class="form-label">QUESTIONS DE QUALIFICATION</label>
+        <div id="items-list"></div>
+        <button id="btn-add-item" onclick="addItemRow()">+ Ajouter une question</button>
+      </div>
+      <div class="color-row">
+        <div class="form-group">
+          <label class="form-label">COULEUR DE FOND</label>
+          <div class="color-preview">
+            <input type="color" id="f-color" value="#0c1a2e" />
+            <input class="form-input" id="f-color-hex" value="#0c1a2e" style="width:110px" oninput="syncColorFromHex('f-color','f-color-hex')" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">COULEUR ACCENT</label>
+          <div class="color-preview">
+            <input type="color" id="f-accent" value="#34d399" />
+            <input class="form-input" id="f-accent-hex" value="#34d399" style="width:110px" oninput="syncColorFromHex('f-accent','f-accent-hex')" />
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">RÉPONSES DU PROSPECT → ÉTAPES SUIVANTES</label>
+        <div id="choices-list"></div>
+        <button id="btn-add-choice" onclick="addChoiceRow()">+ Ajouter une réponse</button>
+      </div>
+    </div>
+    <div id="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-save" onclick="saveNode()">💾 Sauvegarder l'étape</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <h3>Supprimer cette étape ?</h3>
+    <p>Cette action est irréversible. Les liens pointant vers cette étape seront cassés.</p>
+    <div class="btns">
+      <button class="btn-confirm-no" onclick="closeConfirm()">Annuler</button>
+      <button class="btn-confirm-yes" id="confirm-yes-btn">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════
+const DEFAULT_NODES = {
+  start: {
+    id:"start", type:"entry", label:"📞 APPEL",
+    content:"Bonjour M./Mme [Nom], Maxime Dubos de C.lechantier.\nJe vous appelle pour un sujet de suivi de projets IRVE / photovoltaïque.\nEst-ce que vous avez 30 secondes ?",
+    color:"#0f172a", accent:"#38bdf8",
+    choices:[
+      {label:"✅ Oui, j'ai 30 sec", next:"pm_pitch"},
+      {label:"⏱ Pas le temps", next:"pas_temps"},
+    ],
+  },
+  start_mgr: {
+    id:"start_mgr", type:"entry", label:"📞 APPEL",
+    content:"Bonjour M./Mme [Nom], Maxime Dubos de C.lechantier.\nJe vous appelle pour un sujet de suivi de projets IRVE / photovoltaïque.\nEst-ce que vous avez 30 secondes ?",
+    color:"#0f172a", accent:"#38bdf8",
+    choices:[
+      {label:"✅ Oui, j'ai 30 sec", next:"manager_pitch"},
+      {label:"⏱ Pas le temps", next:"pas_temps_mgr"},
+    ],
+  },
+  pas_temps: {
+    id:"pas_temps", type:"reponse", label:"⏱ Pas le temps",
+    content:"Je comprends. Est-ce que je peux vous dire en 10 secondes pourquoi je vous appelle et vous me direz si ça vaut le coup d'en reparler ?",
+    color:"#1e293b", accent:"#f59e0b",
+    choices:[
+      {label:"Oui → Pitch", next:"pm_pitch"},
+      {label:"Non → Rappel", next:"rappel"},
+    ],
+  },
+  pas_temps_mgr: {
+    id:"pas_temps_mgr", type:"reponse", label:"⏱ Pas le temps",
+    content:"Je comprends. Est-ce que je peux vous dire en 10 secondes pourquoi je vous appelle et vous me direz si ça vaut le coup d'en reparler ?",
+    color:"#1e293b", accent:"#f59e0b",
+    choices:[
+      {label:"Oui → Pitch", next:"manager_pitch"},
+      {label:"Non → Rappel", next:"rappel"},
+    ],
+  },
+  rappel: {
+    id:"rappel", type:"action", label:"📅 Fixer un créneau",
+    content:"Demander un créneau de rappel.",
+    color:"#1e293b", accent:"#94a3b8", choices:[],
+  },
+  // ── PM ──
+  pm_pitch: {
+    id:"pm_pitch", type:"pitch", label:"🎯 Pitch PM",
+    content:"On aide des project managers IRVE et photovoltaïque à suivre leurs projets à distance et à gérer plus d'installations en parallèle, sans multiplier les déplacements terrain ni les relances installateurs.",
+    color:"#0c1a2e", accent:"#34d399",
+    choices:[{label:"→ Question miroir", next:"pm_miroir"}],
+  },
+  pm_miroir: {
+    id:"pm_miroir", type:"question", label:"🪞 Question miroir",
+    content:"Aujourd'hui, comment vous faites pour savoir exactement où en sont tous vos projets ?",
+    color:"#0c1a2e", accent:"#34d399",
+    choices:[
+      {label:"WhatsApp / photos", next:"pm_r1"},
+      {label:"Déplacement terrain", next:"pm_r2"},
+      {label:"Outil interne", next:"pm_r3"},
+    ],
+  },
+  pm_r1: { id:"pm_r1", type:"reponse", label:"📱 WhatsApp / photos", content:"Donc vous dépendez beaucoup des retours des installateurs ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Qualification", next:"pm_qualif"}] },
+  pm_r2: { id:"pm_r2", type:"reponse", label:"🚗 Déplacement terrain", content:"Vous devez souvent vous déplacer pour vérifier l'avancement ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Qualification", next:"pm_qualif"}] },
+  pm_r3: { id:"pm_r3", type:"reponse", label:"🛠 Outil interne", content:"Et cet outil vous donne une vision réelle de l'avancement terrain ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Qualification", next:"pm_qualif"}] },
+  pm_qualif: {
+    id:"pm_qualif", type:"checklist", label:"📋 Qualification PM",
+    items:["Volume : Vous gérez combien de projets en parallèle ?","Coordination : Vous devez souvent relancer les installateurs ?","Temps : Ça vous prend combien de temps par semaine ?","Déplacements : Vous êtes souvent sur la route ?"],
+    color:"#0c1a2e", accent:"#34d399",
+    choices:[{label:"→ Baguette magique", next:"pm_baguette"}],
+  },
+  pm_baguette: {
+    id:"pm_baguette", type:"question", label:"🪄 Baguette magique",
+    content:"Si vous aviez une baguette magique pour gérer vos projets, elle ferait quoi ?",
+    color:"#0c1a2e", accent:"#34d399",
+    choices:[{label:"Voir à distance", next:"pm_b1"},{label:"Moins de coordination", next:"pm_b2"},{label:"Plus de projets", next:"pm_b3"}],
+  },
+  pm_b1: { id:"pm_b1", type:"reponse", label:"👁 Voir à distance", content:"Donc l'idéal serait de pouvoir voir l'avancement sans dépendre des remontées terrain ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Rebond matériel", next:"pm_materiel"}] },
+  pm_b2: { id:"pm_b2", type:"reponse", label:"🔕 Moins de coordination", content:"Donc réduire les échanges avec les installateurs ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Rebond matériel", next:"pm_materiel"}] },
+  pm_b3: { id:"pm_b3", type:"reponse", label:"📈 Plus de projets", content:"Donc réussir à gérer plus de projets sans exploser la charge ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Rebond matériel", next:"pm_materiel"}] },
+  pm_materiel: { id:"pm_materiel", type:"question", label:"🔧 Rebond matériel", content:"Et si on devait parler d'une solution concrète ou matérielle, vous imagineriez quoi ?", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Transition + Solution", next:"pm_solution"}] },
+  pm_solution: { id:"pm_solution", type:"solution", label:"💡 Solution", content:"On installe un système de suivi visuel automatisé sur les chantiers. L'objectif : suivre l'avancement en temps réel, sans déplacements, sans relances, sans infos filtrées.\n\nRésultat : certaines équipes gèrent jusqu'à 50 % de projets supplémentaires avec la même équipe.", color:"#0c1a2e", accent:"#34d399", choices:[{label:"→ Closing", next:"pm_closing"}] },
+  pm_closing: { id:"pm_closing", type:"closing", label:"📅 Closing PM", content:"Je ne suis pas encore certain que ce soit pertinent pour vous. Mais si on regarde un de vos projets ensemble, on peut vite voir si ça pourrait vous faire gagner du temps.\n\nVous seriez plutôt jeudi ou vendredi ?", color:"#0c1a2e", accent:"#34d399", choices:[] },
+  // ── MANAGER ──
+  manager_pitch: { id:"manager_pitch", type:"pitch", label:"🎯 Pitch Manager", content:"On aide des responsables d'équipes projets IRVE ou photovoltaïque à garder une vision claire de tous les projets, tout en permettant aux équipes de gérer davantage d'installations en parallèle.", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Question miroir", next:"mgr_miroir"}] },
+  mgr_miroir: {
+    id:"mgr_miroir", type:"question", label:"🪞 Question miroir",
+    content:"Aujourd'hui, comment vous faites pour avoir une vision claire de l'avancement de tous les projets ?",
+    color:"#1a0c2e", accent:"#f472b6",
+    choices:[{label:"Reporting", next:"mgr_r1"},{label:"Réunions", next:"mgr_r2"},{label:"Outils", next:"mgr_r3"}],
+  },
+  mgr_r1: { id:"mgr_r1", type:"reponse", label:"📊 Reporting", content:"Donc vous dépendez beaucoup des remontées de vos équipes ?", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Qualification", next:"mgr_qualif"}] },
+  mgr_r2: { id:"mgr_r2", type:"reponse", label:"🤝 Réunions", content:"Et ces réunions vous donnent une vision terrain fiable ?", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Qualification", next:"mgr_qualif"}] },
+  mgr_r3: { id:"mgr_r3", type:"reponse", label:"🛠 Outils", content:"Et ces outils reflètent vraiment la réalité de l'avancement chantier ?", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Qualification", next:"mgr_qualif"}] },
+  mgr_qualif: {
+    id:"mgr_qualif", type:"checklist", label:"📋 Qualification Manager",
+    items:["Taille équipe : Combien de project managers dans l'équipe ?","Charge : Ils gèrent combien de projets chacun ?","Supervision : Ça arrive de découvrir un retard tard ?","Scalabilité : Si +30 % de projets demain, ça suit ?"],
+    color:"#1a0c2e", accent:"#f472b6",
+    choices:[{label:"→ Baguette magique", next:"mgr_baguette"}],
+  },
+  mgr_baguette: { id:"mgr_baguette", type:"question", label:"🪄 Baguette magique", content:"Si vous aviez une baguette magique pour améliorer la gestion des projets, elle ferait quoi ?", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Rebond matériel", next:"mgr_materiel"}] },
+  mgr_materiel: { id:"mgr_materiel", type:"question", label:"🔧 Rebond matériel", content:"Et si on devait parler d'une solution concrète ou matérielle, vous imagineriez quoi ?", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Transition + Solution", next:"mgr_solution"}] },
+  mgr_solution: { id:"mgr_solution", type:"solution", label:"💡 Solution", content:"On installe un système de suivi visuel automatisé sur les chantiers. L'objectif : suivre l'avancement en temps réel, sans déplacements, sans relances, sans infos filtrées.\n\nRésultat : certaines équipes gèrent jusqu'à 50 % de projets supplémentaires avec la même équipe.", color:"#1a0c2e", accent:"#f472b6", choices:[{label:"→ Closing", next:"mgr_closing"}] },
+  mgr_closing: { id:"mgr_closing", type:"closing", label:"📅 Closing Manager", content:"L'objectif de mon appel c'était simplement de voir si ça valait le coup d'en discuter. On peut prendre 15 minutes pour regarder comment certaines équipes pilotent leurs projets avec ça.\n\nVous seriez plutôt jeudi ou vendredi ?", color:"#1a0c2e", accent:"#f472b6", choices:[] },
+};
+
+const TYPE_TAG = { entry:"DÉPART", question:"QUESTION", reponse:"RÉPONSE TYPE", pitch:"PITCH", checklist:"QUALIFICATION", solution:"SOLUTION", closing:"CLOSING", action:"ACTION" };
+
+const PERSONAS = {
+  pm:  { label:"🧑‍💼 Project Manager", accent:"#34d399", startNode:"start" },
+  mgr: { label:"👔 Responsable PM",    accent:"#f472b6", startNode:"start_mgr" },
+};
+
+// ══ STATE ══
+function loadNodes() {
+  try { const s = localStorage.getItem('scriptnav_nodes_v2'); if (s) return JSON.parse(s); } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_NODES));
+}
+function saveNodes() { localStorage.setItem('scriptnav_nodes_v2', JSON.stringify(NODES)); flashSave(); }
+
+let NODES = loadNodes();
+let history = [];
+let currentPersona = null;
+let editingId = null;
+
+// ══ PERSONA SELECTION ══
+function selectPersona(p) {
+  currentPersona = p;
+  document.getElementById('card-pm').classList.toggle('selected', p === 'pm');
+  document.getElementById('card-mgr').classList.toggle('selected', p === 'mgr');
+  const btn = document.getElementById('persona-start-btn');
+  btn.classList.add('ready');
+  btn.textContent = p === 'pm' ? '▶ LANCER L\'APPEL — Project Manager' : '▶ LANCER L\'APPEL — Responsable PM';
+}
+
+function startCall() {
+  if (!currentPersona) return;
+  const persona = PERSONAS[currentPersona];
+  history = [persona.startNode];
+  // update badge
+  const badge = document.getElementById('persona-badge-value');
+  badge.textContent = persona.label;
+  badge.style.color = persona.accent;
+  document.getElementById('persona-badge').style.borderBottomColor = persona.accent + '44';
+  switchTab('play');
+  renderPlay();
+}
+
+function changePersona() {
+  currentPersona = null;
+  document.getElementById('card-pm').classList.remove('selected');
+  document.getElementById('card-mgr').classList.remove('selected');
+  const btn = document.getElementById('persona-start-btn');
+  btn.classList.remove('ready');
+  btn.textContent = '▶ LANCER L\'APPEL';
+  switchTab('play'); // will show persona view since no persona
+  showPersonaView();
+}
+
+function showPersonaView() {
+  document.getElementById('persona-view').classList.add('active');
+  document.getElementById('play-view').classList.remove('active');
+  document.getElementById('edit-view').classList.remove('active');
+  document.getElementById('tab-play').classList.add('active');
+  document.getElementById('tab-edit').classList.remove('active');
+}
+
+// ══ TAB ══
+function switchTab(t) {
+  if (t === 'play' && !currentPersona) {
+    // show persona screen
+    document.getElementById('persona-view').classList.add('active');
+    document.getElementById('play-view').classList.remove('active');
+    document.getElementById('edit-view').classList.remove('active');
+    document.getElementById('tab-play').classList.add('active');
+    document.getElementById('tab-edit').classList.remove('active');
+    return;
+  }
+  document.getElementById('persona-view').classList.remove('active');
+  document.getElementById('play-view').classList.toggle('active', t === 'play');
+  document.getElementById('edit-view').classList.toggle('active', t === 'edit');
+  document.getElementById('tab-play').classList.toggle('active', t === 'play');
+  document.getElementById('tab-edit').classList.toggle('active', t === 'edit');
+  if (t === 'edit') renderEditGrid();
+}
+
+// ══ PLAY ══
+function resetPlay() {
+  if (!currentPersona) return;
+  history = [PERSONAS[currentPersona].startNode];
+  renderPlay();
+}
+function goBack() { if (history.length > 1) { history.pop(); renderPlay(); } }
+
+function renderPlay() {
+  const id = history[history.length - 1];
+  const node = NODES[id];
+  if (!node) { toast('⚠️ Étape introuvable : ' + id); return; }
+  const accent = node.accent;
+
+  document.getElementById('bg-grid').style.backgroundImage =
+    `linear-gradient(${accent}18 1px, transparent 1px), linear-gradient(90deg, ${accent}18 1px, transparent 1px)`;
+  document.getElementById('bc-bar').style.borderBottomColor = accent + '33';
+
+  // crumbs
+  const crumbs = document.getElementById('bc-crumbs');
+  crumbs.innerHTML = '';
+  history.forEach((hid, i) => {
+    if (i > 0) { const s = document.createElement('span'); s.className = 'bc-sep'; s.textContent = ' › '; crumbs.appendChild(s); }
+    const c = document.createElement('span');
+    c.className = 'bc-crumb' + (i === history.length - 1 ? ' active' : ' clickable');
+    c.style.color = i === history.length - 1 ? accent : '#7d8590';
+    c.textContent = (NODES[hid] || {label: hid}).label;
+    if (i < history.length - 1) c.onclick = () => { history = history.slice(0, i + 1); renderPlay(); };
+    crumbs.appendChild(c);
+  });
+
+  // card
+  const card = document.getElementById('play-card');
+  card.style.animation = 'none'; card.offsetHeight; card.style.animation = 'fadeSlide 0.22s ease';
+  card.style.background = `linear-gradient(160deg, ${node.color}f0, ${node.color}cc)`;
+  card.style.borderColor = accent + '55';
+  card.style.boxShadow = `0 0 48px ${accent}20, 0 8px 40px rgba(0,0,0,0.7)`;
+  document.getElementById('card-topbar').style.background = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
+  const tag = document.getElementById('card-tag');
+  tag.textContent = TYPE_TAG[node.type] || node.type.toUpperCase();
+  tag.style.color = accent; tag.style.background = accent + '18'; tag.style.borderColor = accent + '33';
+  document.getElementById('card-title').textContent = node.label;
+
+  // body
+  const body = document.getElementById('card-body');
+  body.innerHTML = '';
+  if (node.content) {
+    const box = document.createElement('div'); box.className = 'content-box'; box.style.borderColor = accent + '22'; box.textContent = node.content; body.appendChild(box);
+  }
+  if (node.items && node.items.length) {
+    const wrap = document.createElement('div'); wrap.className = 'checklist-wrap'; wrap.style.borderColor = accent + '22';
+    node.items.forEach((item, i) => {
+      const row = document.createElement('div'); row.className = 'check-item'; row.style.borderBottomColor = accent + '15';
+      const num = document.createElement('span'); num.className = 'check-num'; num.style.background = accent + '22'; num.style.borderColor = accent + '44'; num.style.color = accent; num.textContent = i + 1;
+      const txt = document.createElement('span'); txt.className = 'check-text'; txt.textContent = item;
+      row.appendChild(num); row.appendChild(txt); wrap.appendChild(row);
+    });
+    body.appendChild(wrap);
+  }
+
+  // choices
+  const choicesEl = document.getElementById('card-choices');
+  const endEl = document.getElementById('card-end');
+  choicesEl.innerHTML = '';
+  if (node.choices && node.choices.length) {
+    endEl.style.display = 'none'; choicesEl.style.display = 'flex';
+    const lbl = document.createElement('div'); lbl.className = 'choices-lbl'; lbl.textContent = 'RÉPONSE DU PROSPECT'; choicesEl.appendChild(lbl);
+    node.choices.forEach((c, i) => {
+      const btn = document.createElement('button'); btn.className = 'choice-btn'; btn.style.borderColor = accent + '44';
+      const num = document.createElement('span'); num.className = 'choice-num'; num.style.background = accent + '20'; num.style.borderColor = accent + '33'; num.style.color = accent; num.textContent = i + 1;
+      btn.appendChild(num); btn.appendChild(document.createTextNode(c.label));
+      btn.onmouseenter = () => { btn.style.background = accent + '18'; btn.style.borderColor = accent; btn.style.color = '#fff'; };
+      btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.borderColor = accent + '44'; btn.style.color = '#cdd9e5'; };
+      btn.onclick = () => { history.push(c.next); renderPlay(); };
+      choicesEl.appendChild(btn);
+    });
+  } else {
+    choicesEl.style.display = 'none'; endEl.style.display = 'block';
+    const em = document.getElementById('end-msg'); em.style.color = accent; em.style.background = accent + '10'; em.style.borderColor = accent + '33';
+  }
+  document.getElementById('play-back').style.display = history.length > 1 ? 'block' : 'none';
+}
+
+// ══ EDIT GRID ══
+function renderEditGrid() {
+  const grid = document.getElementById('node-grid');
+  grid.innerHTML = '';
+  Object.values(NODES).forEach(node => {
+    const accent = node.accent;
+    const card = document.createElement('div'); card.className = 'node-card';
+    const topBar = document.createElement('div'); topBar.className = 'node-card-top'; topBar.style.background = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
+    const head = document.createElement('div'); head.className = 'node-card-head';
+    const title = document.createElement('div'); title.className = 'node-card-title'; title.textContent = node.label;
+    const typeTag = document.createElement('div'); typeTag.className = 'node-card-type'; typeTag.textContent = TYPE_TAG[node.type] || node.type; typeTag.style.color = accent; typeTag.style.background = accent + '18'; typeTag.style.borderColor = accent + '33';
+    head.appendChild(title); head.appendChild(typeTag);
+    const body = document.createElement('div'); body.className = 'node-card-body';
+    if (node.content || (node.items && node.items.length)) { const ct = document.createElement('div'); ct.className = 'node-card-content'; ct.textContent = node.content || node.items.join(' — '); body.appendChild(ct); }
+    const chips = document.createElement('div'); chips.className = 'node-card-choices';
+    if (node.choices && node.choices.length) { node.choices.forEach(c => { const chip = document.createElement('div'); chip.className = 'choice-chip'; chip.textContent = '→ ' + c.label; chips.appendChild(chip); }); }
+    else { const chip = document.createElement('div'); chip.className = 'choice-chip'; chip.textContent = '∅ Fin de script'; chip.style.color = '#f85149'; chip.style.borderColor = 'rgba(248,81,73,0.27)'; chips.appendChild(chip); }
+    const actions = document.createElement('div'); actions.className = 'node-card-actions';
+    const btnEdit = document.createElement('button'); btnEdit.className = 'btn-edit-node'; btnEdit.textContent = '✏️ Modifier'; btnEdit.onclick = () => openModal(node.id);
+    const btnDel = document.createElement('button'); btnDel.className = 'btn-del-node'; btnDel.textContent = '🗑'; btnDel.onclick = () => confirmDelete(node.id);
+    actions.appendChild(btnEdit); actions.appendChild(btnDel);
+    card.appendChild(topBar); card.appendChild(head); card.appendChild(body); card.appendChild(chips); card.appendChild(actions);
+    grid.appendChild(card);
+  });
+}
+
+// ══ MODAL ══
+function openModal(id) {
+  editingId = id;
+  const isNew = !id;
+  document.getElementById('modal-title').textContent = isNew ? '+ Nouvelle étape' : '✏️ Modifier l\'étape';
+  document.getElementById('modal-overlay').classList.add('open');
+  const node = id ? NODES[id] : { id:'', label:'', type:'question', content:'', color:'#0c1a2e', accent:'#34d399', choices:[], items:[] };
+  document.getElementById('f-id').value = node.id || '';
+  document.getElementById('f-id').disabled = !isNew;
+  document.getElementById('f-id').style.opacity = isNew ? '1' : '0.5';
+  document.getElementById('f-label').value = node.label || '';
+  document.getElementById('f-type').value = node.type || 'question';
+  document.getElementById('f-content').value = node.content || '';
+  document.getElementById('f-color').value = node.color || '#0c1a2e';
+  document.getElementById('f-color-hex').value = node.color || '#0c1a2e';
+  document.getElementById('f-accent').value = node.accent || '#34d399';
+  document.getElementById('f-accent-hex').value = node.accent || '#34d399';
+  document.getElementById('f-color').oninput = () => { document.getElementById('f-color-hex').value = document.getElementById('f-color').value; };
+  document.getElementById('f-accent').oninput = () => { document.getElementById('f-accent-hex').value = document.getElementById('f-accent').value; };
+  const cl = document.getElementById('choices-list'); cl.innerHTML = '';
+  (node.choices || []).forEach(c => addChoiceRow(c.label, c.next));
+  const il = document.getElementById('items-list'); il.innerHTML = '';
+  (node.items || []).forEach(item => addItemRow(item));
+  onTypeChange();
+}
+function onTypeChange() {
+  const t = document.getElementById('f-type').value;
+  document.getElementById('f-content-group').style.display = t === 'checklist' ? 'none' : 'block';
+  document.getElementById('f-items-group').style.display = t === 'checklist' ? 'block' : 'none';
+}
+function addChoiceRow(label='', next='') {
+  const cl = document.getElementById('choices-list');
+  const row = document.createElement('div'); row.className = 'choice-row';
+  const inner = document.createElement('div'); inner.className = 'choice-row-inner';
+  const inp = document.createElement('input'); inp.placeholder = 'Texte de la réponse'; inp.value = label;
+  const sel = document.createElement('select');
+  sel.innerHTML = '<option value="">— Étape suivante —</option>' + Object.values(NODES).map(n => `<option value="${n.id}">${n.label} [${n.id}]</option>`).join('');
+  sel.value = next;
+  inner.appendChild(inp); inner.appendChild(sel);
+  const rm = document.createElement('button'); rm.className = 'btn-rm-choice'; rm.textContent = '×'; rm.onclick = () => row.remove();
+  row.appendChild(inner); row.appendChild(rm); cl.appendChild(row);
+}
+function addItemRow(val='') {
+  const il = document.getElementById('items-list');
+  const row = document.createElement('div'); row.className = 'item-row';
+  const inp = document.createElement('input'); inp.placeholder = 'Ex: Volume : Combien de projets en parallèle ?'; inp.value = val;
+  const rm = document.createElement('button'); rm.className = 'btn-rm-item'; rm.textContent = '×'; rm.onclick = () => row.remove();
+  row.appendChild(inp); row.appendChild(rm); il.appendChild(row);
+}
+function syncColorFromHex(pickerId, hexId) {
+  const v = document.getElementById(hexId).value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById(pickerId).value = v;
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editingId = null; }
+function saveNode() {
+  const id = document.getElementById('f-id').value.trim().replace(/\s+/g,'_');
+  const label = document.getElementById('f-label').value.trim();
+  const type = document.getElementById('f-type').value;
+  const content = document.getElementById('f-content').value.trim();
+  const color = document.getElementById('f-color').value;
+  const accent = document.getElementById('f-accent').value;
+  if (!id) { toast('⚠️ L\'ID est requis'); return; }
+  if (!label) { toast('⚠️ Le titre est requis'); return; }
+  if (!editingId && NODES[id]) { toast('⚠️ Cet ID existe déjà'); return; }
+  const choices = [];
+  document.querySelectorAll('#choices-list .choice-row').forEach(row => {
+    const [inp, sel] = row.querySelectorAll('input, select');
+    if (inp.value.trim() && sel.value) choices.push({ label: inp.value.trim(), next: sel.value });
+  });
+  const items = [];
+  document.querySelectorAll('#items-list .item-row input').forEach(inp => { if (inp.value.trim()) items.push(inp.value.trim()); });
+  const node = { id, label, type, color, accent, choices };
+  if (type === 'checklist') node.items = items; else node.content = content;
+  if (editingId && editingId !== id) delete NODES[editingId];
+  NODES[id] = node;
+  saveNodes(); renderEditGrid(); closeModal(); toast('✓ Étape sauvegardée');
+}
+
+// ══ DELETE ══
+let pendingDeleteId = null;
+function confirmDelete(id) { pendingDeleteId = id; document.getElementById('confirm-overlay').classList.add('open'); }
+function closeConfirm() { document.getElementById('confirm-overlay').classList.remove('open'); pendingDeleteId = null; }
+document.getElementById('confirm-yes-btn').onclick = () => {
+  if (pendingDeleteId) { delete NODES[pendingDeleteId]; saveNodes(); renderEditGrid(); toast('🗑 Étape supprimée'); }
+  closeConfirm();
+};
+
+// ══ UTILS ══
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+let saveTimer;
+function flashSave() { const b = document.getElementById('save-badge'); b.style.display = 'block'; clearTimeout(saveTimer); saveTimer = setTimeout(() => b.style.display = 'none', 2000); }
+</script>
+</body>
+</html>
